@@ -4,6 +4,7 @@
 import Vue from 'vue'
 import App from './App'
 import router from './router'
+import store from './store'
 import VueAwesomeSwiper from 'vue-awesome-swiper'
 import Swiper from 'swiper'  // ES引入方式
 import 'swiper/css/swiper.min.css'  // 根据实际路径和文件修改
@@ -15,5 +16,6 @@ Vue.config.productionTip = false
 new Vue({
   el: '#app',
   router,
+  store,
   render:h=>h(App)
 })

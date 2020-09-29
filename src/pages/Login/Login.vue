@@ -5,44 +5,106 @@
       <div class="login_header">
         <h2 class="login_logo">硅谷外卖</h2>
         <div class="login_header_title">
-          <a href="javascript:;" class="on">短信登录</a>
-          <a href="javascript:;">密码登录</a>
+          <a
+            href="javascript:;"
+            :class="{ on: loginWay }"
+            @click="loginWay = true"
+            >短信登录</a
+          >
+          <a
+            href="javascript:;"
+            :class="{ on: !loginWay }"
+            @click="loginWay = false"
+            >密码登录</a
+          >
         </div>
       </div>
       <div class="login_content">
         <form>
-          <div class="on">
+          <div :class="{ on: loginWay }">
             <section class="login_message">
-              <input type="tel" maxlength="11" placeholder="手机号" />
-              <button disabled="disabled" class="get_verification">获取验证码</button>
+              <input
+                type="tel"
+                maxlength="11"
+                placeholder="手机号"
+                v-model="phone"
+              />
+              <button
+                :disabled="!rightPhone"
+                class="get_verification"
+                :class="{ right_phone: rightPhone }"
+                @click.prevent="getCode"
+              >
+                {{
+                  this.computeTime > 0 ? `已发送${computeTime}s` : "获取验证码"
+                }}
+              </button>
             </section>
             <section class="login_verification">
-              <input type="tel" maxlength="8" placeholder="验证码" />
+              <input
+                type="tel"
+                maxlength="8"
+                placeholder="验证码"
+                v-model="code"
+              />
             </section>
             <section class="login_hint">
               温馨提示：未注册硅谷外卖帐号的手机号，登录时将自动注册，且代表已同意
               <a href="javascript:;">《用户服务协议》</a>
             </section>
           </div>
-          <div>
+          <div :class="{ on: !loginWay }">
             <section>
               <section class="login_message">
-                <input type="tel" maxlength="11" placeholder="手机/邮箱/用户名" />
+                <input
+                  type="text"
+                  maxlength="11"
+                  placeholder="手机/邮箱/用户名"
+                  v-model="name"
+                />
               </section>
               <section class="login_verification">
-                <input type="tel" maxlength="8" placeholder="密码" />
-                <div class="switch_button off">
-                  <div class="switch_circle"></div>
-                  <span class="switch_text">...</span>
+                <input
+                  type="password"
+                  maxlength="8"
+                  placeholder="密码"
+                  v-model="pwd"
+                  v-if="!showPwd"
+                />
+                <input
+                  type="text"
+                  maxlength="8"
+                  placeholder="密码"
+                  v-model="pwd"
+                  v-else
+                />
+                <div
+                  class="switch_button"
+                  :class="showPwd ? 'on' : 'off'"
+                  @click="showPwd = !showPwd"
+                >
+                  <div class="switch_circle" :class="{ right: showPwd }"></div>
+                  <span class="switch_text">{{ showPwd ? "abc" : "..." }}</span>
                 </div>
               </section>
               <section class="login_message">
-                <input type="text" maxlength="11" placeholder="验证码" />
-                <img class="get_verification" src="./images/captcha.svg" alt="captcha" />
+                <input
+                  type="text"
+                  maxlength="11"
+                  placeholder="验证码"
+                  v-model="captcha"
+                />
+                <img
+                  class="get_verification"
+                  src="http://localhost:4000/captcha"
+                  alt="captcha"
+                  @click="getCaptcha"
+                  ref="captchaImg"
+                />
               </section>
             </section>
           </div>
-          <button class="login_submit">登录</button>
+          <button class="login_submit" @click.prevent="login">登录</button>
         </form>
         <a href="javascript:;" class="about_us">关于我们</a>
       </div>
@@ -50,25 +112,134 @@
         <i class="iconfont icon-jiantou2"></i>
       </a>
     </div>
+    <AlertTip
+      :alertText="alertText"
+      v-if="alertShow"
+      @closeTip="closeTip"
+    ></AlertTip>
   </div>
 </template>
 
 <script>
+import AlertTip from "@/components/AlertTip/AlertTip";
+import { reqSendCode, reqPwdLogin, reqSmsLogin } from "../../api";
 export default {
-  components: {},
+  components: {
+    AlertTip
+  },
   data() {
-    return {};
+    return {
+      phone: "",
+      code: "",
+      name: "",
+      pwd: "",
+      captcha: "",
+      computeTime: 0,
+      loginWay: true,
+      showPwd: false,
+      alertShow: false
+    };
   },
   //监听属性 类似于data概念
-  computed: {},
+  computed: {
+    rightPhone() {
+      return /^1\d{10}$/.test(this.phone);
+    }
+  },
   //监控data中的数据变化
   watch: {},
 
-  methods: {},
+  methods: {
+    async getCode() {
+      console.log(this.computeTime);
+      if (this.computeTime == 0) {
+        this.computeTime = 60;
+        this.interverId = setInterval(() => {
+          this.computeTime--;
+          if (this.computeTime <= 0) {
+            clearInterval(this.interverId);
+          }
+        }, 1000);
+        const result = await reqSendCode(this.phone);
+        if (result.code === 0) {
+          this.computeTime = 0;
+          clearInterval(this.interverId);
+        } else {
+          //短信发送失败
+          this.showAlert(result.msg);
+          if (this.computeTime) {
+            this.computeTime = 0;
+            clearInterval(this.interverId);
+            this.interverId = undefined;
+          }
+        }
+        console.log(result.code);
+      }
+    },
+    async login() {
+      let result;
+      if (this.loginWay) {
+        //短信登录        
+        let { rightPhone, phone, code } = this;
+        if (!rightPhone) {
+          this.showAlert("手机号不能为空");
+          return;
+        } else if (!code) {
+          this.showAlert("验证码不能为空");
+          return;
+        }
+        result = await reqSmsLogin(phone, code);
+      } else {
+        //手机号登录
+        let { name, pwd, captcha } = this;
+        if (!name) {
+          this.showAlert("用户名不能为空");
+          return;
+        } else if (!pwd) {
+          this.showAlert("密码不能为空");
+          return;
+        } else if (!captcha) {
+          this.showAlert("验证码不能为空");
+          return;
+        }    
+        result = await reqPwdLogin({name, pwd, captcha});
+      }
+      if (this.computeTime) {
+        this.computeTime = 0;
+        clearInterval(this.interverId);
+        this.interverId = undefined;
+      }
+      if (result.code === 0) {
+        
+        const userInfo = result.data;
+        console.log(userInfo)
+        this.$store.dispatch('recordUser',userInfo)
+        console.log(this.$store.getters.userInfo)
+        this.$router.replace('/profile')                
+      } else {
+        this.$refs.captchaImg.src="http://localhost:4000/captcha?time=" + Date.now()
+        this.showAlert(result.msg);
+      }
+    },
+    showAlert(text) {
+      this.alertText = text;
+      this.alertShow = true;
+    },
+    closeTip() {
+      this.alertShow = false;
+      this.alertText = "";
+    },
+    getCaptcha(event) {
+      this.$refs.captchaImg.src = "http://localhost:4000/captcha?time=" + Date.now();
+    }
+  },
   //生命周期 - 创建完成（可以访问当前this实例）
   created() {},
   //生命周期 - 挂载完成（可以访问DOM元素）
-  mounted() {},
+  mounted() {
+    // this.computeTime = -2;
+    // console.log(this.computeTime == true);
+  },
   beforeCreate() {},
   beforeMount() {},
   beforeUpdate() {},
@@ -80,7 +251,8 @@ export default {
 };
 </script>
 <style lang='stylus' scoped>
-@import "../../common/stylus/mixins.styl";
+@import '../../common/stylus/mixins.styl';
+
 .loginContainer {
   width: 100%;
   height: 100%;
@@ -161,6 +333,11 @@ export default {
               color: #ccc;
               font-size: 14px;
               background: transparent;
+              outline: 0;
+            }
+
+            .get_verification.right_phone {
+              color: black;
             }
           }
 
@@ -211,6 +388,10 @@ export default {
                 background: #fff;
                 box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
                 transition: transform 0.3s;
+              }
+
+              .switch_circle.right {
+                transform: translateX(30px);
               }
             }
           }

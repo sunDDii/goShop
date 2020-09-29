@@ -5,18 +5,17 @@ import Order from '@/pages/Order/Order'
 import Search from '@/pages/Search/Search'
 import Profile from '@/pages/Profile/Profile'
 import Login from '@/pages/Login/Login'
+import swiper from '@/pages/Swiper/Swiper'
 
-
-// const originalPush = Router.prototype.push
-
-// Router.prototype.push = function push(location) {
-//   return originalPush.call(this, location).catch(err => err)
-// }
 Vue.use(Router)
 export default new Router({
   routes: [
     {
       path: '/',
+      redirect: 'swiper',
+    },      
+    {
+      path: '/msite',
       redirect: 'msite',
     },    
     {

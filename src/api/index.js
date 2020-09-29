@@ -1,11 +1,11 @@
 import ajax from "./ajax";
 const BASE_URL="/api";
+console.log(BASE_URL)
 //包含n个请求接口的函数
 //1.根据经纬度获取位置详情  geohash //为参数
 export const reqAddress = (geohash)=>ajax(`${BASE_URL}/position/${geohash}`);
 
-//2.获取视频分类列表
-export const reqFoodCategorys = ()=>ajax(BASE_URL+'/idnex_Category');
+export const reqFoodTypes = ()=>ajax(BASE_URL+'/index_category');
 
 //3.根据经纬度获取商铺列表
 export const reqShops =  (longitude, latitude) => ajax(BASE_URL+'/shops', {longitude, latitude});
